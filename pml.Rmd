@@ -1,0 +1,78 @@
+---
+title: "Practical Machine Learning"
+author: "Chajda (Ivo Chaloupka)"
+date: "Saturday, November 21, 2015"
+output: html_document
+---
+
+Using devices such as Jawbone Up, Nike FuelBand, and Fitbit it is now possible to collect a large amount of data about personal activity relatively inexpensively. These type of devices are part of the quantified self movement – a group of enthusiasts who take measurements about themselves regularly to improve their health, to find patterns in their behavior, or because they are tech geeks. One thing that people regularly do is quantify how much of a particular activity they do, but they rarely quantify how well they do it. In this project, your goal will be to use data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants. They were asked to perform barbell lifts correctly and incorrectly in 5 different ways. More information is available from the website here: <http://groupware.les.inf.puc-rio.br/har> (see the section on the Weight Lifting Exercise Dataset). 
+
+# Loading and prepare data sets
+Loading data from Coursera's course page "Practical Machine Learning". Prepare validation data set for cross validation.
+```{r}
+setwd("C:\\Users\\ichaloup\\Desktop\\IVO\\tmp")
+library(ISLR)
+library(kernlab)
+library(caret)
+library(randomForest)
+library(e1071)
+
+trainDataFull <- read.csv("pml-training.csv")
+testData <- read.csv("pml-testing.csv")
+
+part <- createDataPartition(trainDataFull$classe, p=0.70, list=FALSE)
+trainData <- trainDataFull[part,]
+validationData <- trainDataFull[-part,]
+```
+
+# Explore data
+```{r}
+# Commented shrink the size
+#summary(trainDataFull)
+#sapply(trainDataFull, class)
+#str(trainDataFull)
+dim(trainDataFull)
+```
+We see that the columns are useful for modeling. We remove columns ID and where many of the NA or empty to reduce complexity ("specification") model.
+```{r}
+trainData <- trainData[,-grep("X|user_name|.*timestamp|(kurtosis|skewness)_.*_(dumb)?belt|(min|max|amplitude)_yaw_(dumb)?belt", names(trainData))]
+trainData <- trainData[,-nearZeroVar(trainData)]
+t <- colSums(is.na(trainData))
+print(t[t>0])
+trainData <- trainData[,colSums(is.na(trainData))==0]
+dim(trainData)
+#summary(trainData)
+```
+
+# Create model
+We have chosen to create a Random Forest model to predict because of their high level of accuracy.
+```{r}
+model <- randomForest(classe~., data=trainData, prox=TRUE, importance=TRUE)
+confusionMatrix(model$predicted, trainData$classe)
+```
+We see that we achieve a high level of accuracy with the confusion matrix showing in sample accuracy `100*sum(model$predicted==trainData$classe)/length(trainData$classe)` %.
+
+# Cross validation and error rate
+```{r}
+predict<-predict(model, newdata=validationData)
+table(predict, validationData$classe)
+confusionMatrix(predict, validationData$classe)
+predRight <- sum(predict==validationData$classe)
+predWrong <- length(validationData$classe) - sum(predict==validationData$classe)
+```
+The confusion matrix shows the predictions from our model is very accurate `100*sum(predict==validationData$classe)/length(validationData$classe)` % with only `predWrong` misses out of the `length(validationData$classe)` observations.
+
+# Test set
+```{r}
+pred <- predict(model, testData)
+
+# function to write to file from the programming assignment 
+pml_write_files = function(x){
+  n = length(x)
+  for(i in 1:n){
+    filename = paste0("problem_id_",i,".txt")
+    write.table(x[i],file=filename,quote=FALSE,row.names=FALSE,col.names=FALSE)
+  }
+}
+pml_write_files(as.character(pred))
+```
