@@ -3,12 +3,20 @@
 library(shiny)
 shinyServer(
   function(input, output) {
-    name <- reactive({input$name})
-    multiplicator <- reactive({input$multiplicator})
-    radioBox <- reactive({input$radioBox})
+    pattern <- reactive({input$pattern})
+    x <- reactive({input$x})
+    choices <- reactive({input$choices})
+    invert <- reactive({input$invert})
     age <- reactive({input$age})
-
-    output$text1 <- renderText({paste("Hallo ", name())})
-    output$text2 <- renderText({as.numeric(age())*as.numeric(multiplicator())})
+    #
+    output$text1 <- renderText({
+      0L != length(grep(pattern(), x(),
+        ignore.case = "i" %in% choices(),
+        perl = "p" %in% choices(),
+        value = "v" %in% choices(),
+        fixed = "f" %in% choices(),
+        useBytes = "u" %in% choices(),
+        invert= 1 == invert()))
+    })
   }
 )
