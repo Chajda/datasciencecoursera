@@ -3,6 +3,7 @@
 Files ui.R and server.R are very simple application for Shiny server.
 
 Local run:
+- download files to working directory
 - library(Shiny)
 - runApp()
 
